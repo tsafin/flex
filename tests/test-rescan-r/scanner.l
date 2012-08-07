@@ -74,7 +74,7 @@ main (int argc, char* const argv[])
 
     printf("Test 2: Rescanning with new scanner each time.\n");
 
-    memset(&yyscanner,0,sizeof(yyscanner)); // Just to be clean about it.
+    memset(&yyscanner,0,sizeof(yyscanner)); /* Just to be clean about it. */
 
     for (i=0; i < 4; ++i){
         yyscan_t  s;

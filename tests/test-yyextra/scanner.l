@@ -43,7 +43,8 @@ struct Buffer {
 #define YY_EXTRA_TYPE struct Buffer *
 
 /* Save char into junk array at next position. */
-static void append_char (char c,  yyscan_t  scanner );
+/* static void append_char (char c,  yyscan_t  scanner ); FIXME? */
+static void append_char (char c, void *scanner );
 
 %}
 

@@ -22,11 +22,12 @@
 /*  PURPOSE. */
 
 #include "flexdef.h"
+#if 0
 static const char * check_4_gnu_m4 =
     "m4_dnl ifdef(`__gnu__', ,"
     "`errprint(Flex requires GNU M4. Set the PATH or set the M4 environment variable to its path name.)"
     " m4exit(2)')\n";
-
+#endif
 
 /** global chain. */
 struct filter *output_chain = NULL;
@@ -184,7 +185,7 @@ clearerr(stdin);
 
 			if ((r = chain->filter_func (chain)) == -1)
 				flexfatal (_("filter_func failed"));
-			exit (0);
+			exit (EXIT_SUCCESS);
 		}
 		else {
 			execvp (chain->argv[0],
@@ -193,7 +194,7 @@ clearerr(stdin);
                     chain->argv[0]);
 		}
 
-		exit (1);
+		exit (EXIT_FAILURE);
 	}
 
 	/* Parent */
@@ -230,6 +231,7 @@ int filter_truncate (struct filter *chain, int max_len)
 /** Splits the chain in order to write to a header file.
  *  Similar in spirit to the 'tee' program.
  *  The header file name is in extra.
+ * FIXME: actually never returns.
  *  @return 0 (zero) on success, and -1 on failure.
  */
 int filter_tee_header (struct filter *chain)
@@ -267,29 +269,24 @@ int filter_tee_header (struct filter *chain)
 	 */
 
 	if (write_header) {
-        fputs (check_4_gnu_m4, to_h);
-		fputs ("m4_changecom`'m4_dnl\n", to_h);
-		fputs ("m4_changequote`'m4_dnl\n", to_h);
-		fputs ("m4_changequote([[,]])[[]]m4_dnl\n", to_h);
-	    fputs ("m4_define([[M4_YY_NOOP]])[[]]m4_dnl\n", to_h);
-		fputs ("m4_define( [[M4_YY_IN_HEADER]],[[]])m4_dnl\n",
-		       to_h);
-		fprintf (to_h, "#ifndef %sHEADER_H\n", prefix);
-		fprintf (to_h, "#define %sHEADER_H 1\n", prefix);
-		fprintf (to_h, "#define %sIN_HEADER 1\n\n", prefix);
-		fprintf (to_h,
-			 "m4_define( [[M4_YY_OUTFILE_NAME]],[[%s]])m4_dnl\n",
-			 headerfilename ? headerfilename : "<stdout>");
-
+		fprintf(to_h,
+				"m4_divert(-1)\n"
+				"m4_define(`M4_YY_IN_HEADER',`')\n"
+				"m4_define(`M4_FLEX_INCLUDE',`%s')\n"
+				"m4_define(`M4_YY_INFILE_NAME',`%s')\n"
+				"m4_define(`M4_YY_OUTFILE_NAME',`%s')\n",
+				flex_include_path,
+				infilename ? infilename : "<stdin>",
+				headerfilename ? headerfilename : "<stdout>");
 	}
-
-    fputs (check_4_gnu_m4, to_c);
-	fputs ("m4_changecom`'m4_dnl\n", to_c);
-	fputs ("m4_changequote`'m4_dnl\n", to_c);
-	fputs ("m4_changequote([[,]])[[]]m4_dnl\n", to_c);
-	fputs ("m4_define([[M4_YY_NOOP]])[[]]m4_dnl\n", to_c);
-	fprintf (to_c, "m4_define( [[M4_YY_OUTFILE_NAME]],[[%s]])m4_dnl\n",
-		 outfilename ? outfilename : "<stdout>");
+	fprintf(to_c,
+			"m4_divert(-1)\n"
+			"m4_define(`M4_FLEX_INCLUDE',`%s')\n"
+			"m4_define(`M4_YY_INFILE_NAME',`%s')\n"
+			"m4_define(`M4_YY_OUTFILE_NAME',`%s')\n",
+			flex_include_path,
+			infilename ? infilename : "<stdin>",
+		   	outfilename ? outfilename : "<stdout>");
 
 	buf = (char *) flex_alloc (readsz);
 	if (!buf)
@@ -301,15 +298,6 @@ int filter_tee_header (struct filter *chain)
 	}
 
 	if (write_header) {
-		fprintf (to_h, "\n");
-
-		/* write a fake line number. It will get fixed by the linedir filter. */
-		fprintf (to_h, "#line 4000 \"M4_YY_OUTFILE_NAME\"\n");
-
-		fprintf (to_h, "#undef %sIN_HEADER\n", prefix);
-		fprintf (to_h, "#endif /* %sHEADER_H */\n", prefix);
-		fputs ("m4_undefine( [[M4_YY_IN_HEADER]])m4_dnl\n", to_h);
-
 		fflush (to_h);
 		if (ferror (to_h))
 			lerrsf (_("error writing output file %s"),
@@ -359,7 +347,15 @@ int filter_fix_linedirs (struct filter *chain)
 	while (fgets (buf, readsz, stdin)) {
 
 		regmatch_t m[10];
-
+#if 0
+		/* Delete all #line directives when they are disabled, to
+		 * handle any line directives inserted before "%option noline"
+		 */
+		if (!gen_line_dirs && !strncmp(buf,"#line ",6)) {
+			buf[0] = '\n';
+			buf[1] = 0;
+		} else
+#endif
 		/* Check for #line directive. */
 		if (buf[0] == '#'
 			&& regexec (&regex_linedir, buf, 3, m, 0) == 0) {
@@ -441,4 +437,38 @@ int filter_fix_linedirs (struct filter *chain)
 	return 0;
 }
 
-/* vim:set expandtab cindent tabstop=4 softtabstop=4 shiftwidth=4 textwidth=0: */
+int filter_check_errors (struct filter *chain)
+{
+	char   *buf;
+	const int readsz = 512;
+
+	if (!chain)
+		return 0;
+
+	buf = (char *) flex_alloc (readsz);
+
+	while (fgets (buf, readsz, stdin)) {
+		if (strncmp(buf,"#error ",7)==0) {
+			flexerror (_(&buf[7]));
+	    }
+		fputs (buf, stdout);
+		if (strspn(buf," \t\r\n")<strlen(buf)) break;
+	}
+
+	while (fgets (buf, readsz, stdin)) {
+		fputs (buf, stdout);
+	}
+
+	fflush (stdout);
+	if (ferror (stdout))
+		lerrsf (_("error writing output file %s"),
+			outfilename ? outfilename : "<stdout>");
+
+	else if (fclose (stdout))
+		lerrsf (_("error closing output file %s"),
+			outfilename ? outfilename : "<stdout>");
+
+	return 0;
+}
+
+/* vim:set noexpandtab cindent tabstop=4 softtabstop=4 shiftwidth=4 textwidth=0: */

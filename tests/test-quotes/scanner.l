@@ -74,7 +74,7 @@ f       return 1+foo(a[b[c[0]]]);
             /* action block  [[[ 3 ]]]      TEST_XXX */
             /* action block [[[[ 4 ]]]]     TEST_XXX */
             /* action block ]] unmatched [[ TEST_XXX */
-            return 1+foo(a[b[c[0]]]);  //   TEST_XXX
+            return 1+foo(a[b[c[0]]]);    /* TEST_XXX */
          }
 %%
 

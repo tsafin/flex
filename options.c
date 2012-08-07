@@ -93,10 +93,10 @@ optspec_t flexopts[] = {
 	,			/* Suppress default rule to ECHO unmatched text. */
 	{"--default", OPT_DEFAULT, 0}
 	,
-	{"-c", OPT_DONOTHING, 0}
-	,			/* For POSIX lex compatibility. */
-	{"-n", OPT_DONOTHING, 0}
-	,			/* For POSIX lex compatibility. */
+	{"-c", OPT_C_SCANNER, 0}
+	,
+	{"-n", OPT_NO_VERBOSE, 0}
+	,
 	{"--ecs", OPT_ECS, 0}
 	,			/* Construct equivalence classes. */
 	{"--noecs", OPT_NO_ECS, 0}
@@ -117,6 +117,10 @@ optspec_t flexopts[] = {
 	,
 	{"--help", OPT_HELP, 0}
 	,			/* Produce this help message. */
+	{"-Y PATH", OPT_INCLUDE_PATH, 0}
+	,			/* Same as --include; Sun's lex uses -Y for this. */
+	{"--include=PATH", OPT_INCLUDE_PATH, 0}
+	,			/* Specifiy the include path for skeleton files */
 	{"-I", OPT_INTERACTIVE, 0}
 	,
 	{"--interactive", OPT_INTERACTIVE, 0}
@@ -139,11 +143,15 @@ optspec_t flexopts[] = {
 	,			/* use built-in main() function. */
 	{"--nomain", OPT_NO_MAIN, 0}
 	,
+	{"--m4outfile=FILE", OPT_M4OUTFILE, 0}
+	,			/* Write intermediate M4 to FILE */
 	{"--meta-ecs", OPT_META_ECS, 0}
 	,			/* Construct meta-equivalence classes. */
 	{"--nometa-ecs", OPT_NO_META_ECS, 0}
 	,
 	{"--never-interactive", OPT_NEVER_INTERACTIVE, 0}
+	,
+	{"--options=OPTIONS", OPT_OPTION_LIST, 0}
 	,
 	{"-o FILE", OPT_OUTFILE, 0}
 	,
@@ -273,7 +281,12 @@ optspec_t flexopts[] = {
 	,
 	{"--noyyset_lloc", OPT_NO_YYSET_LLOC, 0}
 	,
-
+#if 0
+	{"--include-header", OPT_INCLUDE_HEADER, 0}
+	,
+	{"--yynamespace=NAME", OPT_YYNAMESPACE, 0}
+	,
+#endif
 	{0, 0, 0}		/* required final NULL entry. */
 };
 

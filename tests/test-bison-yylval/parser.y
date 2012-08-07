@@ -60,7 +60,17 @@ int process_text(char* s) {
 %token  LT 
 %token  GT
 %token  LTSLASH "</"
-
+%{
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef void *yyscan_t;
+extern int testget_lineno(void*);
+extern int testlex(YYSTYPE *yylval, yyscan_t yyscanner);
+#ifdef __cplusplus
+}
+#endif
+%}
 %%
 
 html:

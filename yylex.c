@@ -199,9 +199,9 @@ int     yylex ()
 			break;
 
 		default:
+			/* FIXME: several newer tokens are flagged as "weird". */
 			fprintf (stderr,
-				 _
-				 ("*Something Weird* - tok: %d val: %d\n"),
+				 _("*Something Weird* - tok: %d val: %d\n"),
 				 toktype, yylval);
 			break;
 		}

@@ -1,0 +1,119 @@
+# This file is part of flex.
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+
+# Neither the name of the University nor the names of its contributors
+# may be used to endorse or promote products derived from this software
+# without specific prior written permission.
+
+# THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE.
+
+# ------------------------------------------------
+# This test is really a set of tests, one for
+# each compression flag. -Ca, -Cem, etc..
+# 'test-opt' builds non-serialized scanners with various table options.
+# 'test-ver' verifies that the serialized tables match the in-code tables.
+# 'test-ser' deserializes the tables at runtime.
+# 'test-mul' checks that we can store multiple tables in a single file.
+# ------------------------------------------------
+
+FLEX = $(top_builddir)/flex
+
+testname  := test-table-opts
+allopts   := -Ca -Ce -Cf -CF -Cm -Cem -Cae -Caef -CaeF -Cam -Caem
+
+# the test names themselves
+opttests :=  $(foreach opt,$(allopts), test-opt$(opt))
+sertests :=  $(foreach opt,$(allopts), test-ser$(opt))
+vertests :=  $(foreach opt,$(allopts), test-ver$(opt))
+alltests  := $(opttests) $(vertests) $(sertests) test-mul
+
+# the executables to build
+optexe := $(addsuffix $(EXEEXT),$(opttests))
+verexe := $(addsuffix $(EXEEXT),$(vertests))
+serexe := $(addsuffix $(EXEEXT),$(sertests))
+allexe := $(optexe) $(verexe) $(serexe)
+
+# the .cpp files
+optsrc := $(addsuffix .cpp,$(opttests))
+versrc := $(addsuffix .cpp,$(vertests))
+sersrc := $(addsuffix .cpp,$(sertests))
+allsrc := $(optsrc) $(versrc) $(sersrc)
+
+# the .o files
+optobj := $(addsuffix .o,$(opttests))
+verobj := $(addsuffix .o,$(vertests))
+serobj := $(addsuffix .o,$(sertests))
+allobj := $(optobj) $(verobj) $(serobj)
+
+# the .tables files
+sertables  := $(addsuffix .tables,$(sertests))
+alltables  := $(addsuffix .tables,$(alltests))
+
+EXTRA_DIST = scanner.l test.input
+CLEANFILES = scanner.cpp OUTPUT $(allobj) $(allsrc) $(alltables) \
+             all-ser.tables $(allexe)
+AM_CPPFLAGS = -I$(srcdir) -I$(top_srcdir) -I$(top_builddir)
+
+test: test-opt test-ser test-ver test-mul
+
+test-opt%.cpp: $(srcdir)/scanner.l
+	$(FLEX) -L -P $(subst -,_,$(basename $(@F))) $* -o $@ $<
+
+test-ser%.cpp: $(srcdir)/scanner.l
+	$(FLEX) -L -P $(subst -,_,$(basename $(@F))) --tables-file="test-ser$*.tables"  $* -o $@ $<
+
+test-ver%.cpp: $(srcdir)/scanner.l
+	$(FLEX) -L -P $(subst -,_,$(basename $(@F))) --tables-file="test-ver$*.tables" --tables-verify $* -o $@ $<
+
+test-opt%$(EXEEXT): test-opt%.o
+	$(CXX) -o $@ $(LDFLAGS) $< $(LOADLIBES)
+
+test-ser%$(EXEEXT): test-ser%.o
+	$(CXX) -o $@ $(LDFLAGS) $< $(LOADLIBES)
+
+test-ver%$(EXEEXT): test-ver%.o
+	$(CXX) -o $@ $(LDFLAGS) $< $(LOADLIBES)
+
+test-opt: $(optexe)
+	for t in $(optexe) ; do \
+		./$$t `basename $$t $(EXEEXT)`.tables < $(srcdir)/test.input \
+          || { echo $t FAILED ; exit 1 ; } ; \
+	done
+
+test-ver: $(verexe)
+	for t in $(verexe) ; do \
+		./$$t `basename $$t $(EXEEXT)`.tables < $(srcdir)/test.input \
+          || { echo $t FAILED ; exit 1 ; } ; \
+	done
+
+test-ser: $(serexe)
+	for t in $(serexe) ; do \
+		./$$t `basename $$t $(EXEEXT)`.tables < $(srcdir)/test.input \
+          || { echo $t FAILED ; exit 1 ; } ; \
+	done
+
+test-mul: $(serexe)
+	$(RM) all-ser.tables
+	cat $(sertables) > all-ser.tables
+	for t in $(serexe) ; do \
+		./$$t all-ser.tables < $(srcdir)/test.input || { echo $$t FAILED; exit 1; } ;  \
+	done
+
+test-opt-%.o: test-opt-%.cpp ; $(CXX) -c -o $@ $(AM_CPPFLAGS) $(CPPFLAGS) $(CFLAGS) $<
+test-ser-%.o: test-ser-%.cpp ; $(CXX) -c -o $@ $(AM_CPPFLAGS) $(CPPFLAGS) -DTEST_HAS_TABLES_EXTERNAL $(CFLAGS) $<
+test-ver-%.o: test-ver-%.cpp ; $(CXX) -c -o $@ $(AM_CPPFLAGS) $(CPPFLAGS) -DTEST_HAS_TABLES_VERIFY -DTEST_HAS_TABLES_EXTERNAL $(CFLAGS) $<
+
+.PHONY: test test-opt test-ser test-ver test-mul
+.SECONDARY: $(allobj) $(allsrc)

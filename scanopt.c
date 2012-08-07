@@ -40,11 +40,11 @@
 #ifdef HAVE_STRCASECMP
 #define STRCASECMP(a,b) strcasecmp(a,b)
 #else
-static int STRCASECMP PROTO ((const char *, const char *));
+static int STRCASECMP (const char *, const char *);
 
-static int STRCASECMP (a, b)
-     const char *a;
-     const char *b;
+static int STRCASECMP (
+     const char *a,
+     const char *b)
 {
 	while (tolower (*a++) == tolower (*b++)) ;
 	return b - a;
@@ -77,56 +77,56 @@ struct _scanopt_t {
 };
 
 /* Accessor functions. These WOULD be one-liners, but portability calls. */
-static const char *NAME PROTO ((struct _scanopt_t *, int));
-static int PRINTLEN PROTO ((struct _scanopt_t *, int));
-static int RVAL PROTO ((struct _scanopt_t *, int));
-static int FLAGS PROTO ((struct _scanopt_t *, int));
-static const char *DESC PROTO ((struct _scanopt_t *, int));
-static int scanopt_err PROTO ((struct _scanopt_t *, int, int, int));
-static int matchlongopt PROTO ((char *, char **, int *, char **, int *));
+static const char *NAME (struct _scanopt_t *, int);
+static int PRINTLEN (struct _scanopt_t *, int);
+static int RVAL (struct _scanopt_t *, int);
+static int FLAGS (struct _scanopt_t *, int);
+static const char *DESC (struct _scanopt_t *, int);
+static int scanopt_err (struct _scanopt_t *, int, int, int);
+static int matchlongopt (char *, char **, int *, char **, int *);
 static int find_opt
-PROTO ((struct _scanopt_t *, int, char *, int, int *, int *opt_offset));
+(struct _scanopt_t *, int, char *, int, int *, int *opt_offset);
 
-static const char *NAME (s, i)
-     struct _scanopt_t *s;
-     int     i;
+static const char *NAME (
+     struct _scanopt_t *s,
+     int     i)
 {
 	return s->options[i].opt_fmt +
 		((s->aux[i].flags & IS_LONG) ? 2 : 1);
 }
 
-static int PRINTLEN (s, i)
-     struct _scanopt_t *s;
-     int     i;
+static int PRINTLEN (
+     struct _scanopt_t *s,
+     int     i)
 {
 	return s->aux[i].printlen;
 }
 
-static int RVAL (s, i)
-     struct _scanopt_t *s;
-     int     i;
+static int RVAL (
+     struct _scanopt_t *s,
+     int     i)
 {
 	return s->options[i].r_val;
 }
 
-static int FLAGS (s, i)
-     struct _scanopt_t *s;
-     int     i;
+static int FLAGS (
+     struct _scanopt_t *s,
+     int     i)
 {
 	return s->aux[i].flags;
 }
 
-static const char *DESC (s, i)
-     struct _scanopt_t *s;
-     int     i;
+static const char *DESC (
+     struct _scanopt_t *s,
+     int     i)
 {
 	return s->options[i].desc ? s->options[i].desc : "";
 }
 
 #ifndef NO_SCANOPT_USAGE
-static int get_cols PROTO ((void));
+static int get_cols (void);
 
-static int get_cols ()
+static int get_cols (void)
 {
 	char   *env;
 	int     cols = 80;	/* default */
@@ -159,11 +159,11 @@ static int get_cols ()
        (s)->subscript= 0;  \
     }while(0)
 
-scanopt_t *scanopt_init (options, argc, argv, flags)
-     const optspec_t *options;
-     int     argc;
-     char  **argv;
-     int     flags;
+scanopt_t *scanopt_init (
+     const optspec_t *options,
+     int     argc,
+     char  **argv,
+     int     flags)
 {
 	int     i;
 	struct _scanopt_t *s;
@@ -255,10 +255,10 @@ typedef struct usg_elem usg_elem;
 [indent][option, alias1, alias2...][indent][description line1
                                             description line2...]
  */
-int     scanopt_usage (scanner, fp, usage)
-     scanopt_t *scanner;
-     FILE   *fp;
-     const char *usage;
+int     scanopt_usage (
+     scanopt_t *scanner,
+     FILE   *fp,
+     const char *usage)
 {
 	struct _scanopt_t *s;
 	int     i, columns, indent = 2;
@@ -529,11 +529,11 @@ int     scanopt_usage (scanner, fp, usage)
 #endif /* no scanopt_usage */
 
 
-static int scanopt_err (s, opt_offset, is_short, err)
-     struct _scanopt_t *s;
-     int     opt_offset;
-     int     is_short;
-     int     err;
+static int scanopt_err (
+     struct _scanopt_t *s,
+     int     opt_offset,
+     int     is_short,
+     int     err)
 {
 	const char *optname = "";
 	char    optchar[2];
@@ -592,12 +592,12 @@ static int scanopt_err (s, opt_offset, is_short, err)
  * optname will point to str + 2
  *
  */
-static int matchlongopt (str, optname, optlen, arg, arglen)
-     char   *str;
-     char  **optname;
-     int    *optlen;
-     char  **arg;
-     int    *arglen;
+static int matchlongopt (
+     char   *str,
+     char  **optname,
+     int    *optlen,
+     char  **arg,
+     int    *arglen)
 {
 	char   *p;
 
@@ -639,13 +639,13 @@ static int matchlongopt (str, optname, optlen, arg, arglen)
  * Short options must be exact.
  * Return boolean true if found and no error.
  * Error stored in err_code or zero if no error. */
-static int find_opt (s, lookup_long, optstart, len, err_code, opt_offset)
-     struct _scanopt_t *s;
-     int     lookup_long;
-     char   *optstart;
-     int     len;
-     int    *err_code;
-     int    *opt_offset;
+static int find_opt (
+     struct _scanopt_t *s,
+     int     lookup_long,
+     char   *optstart,
+     int     len,
+     int    *err_code,
+     int    *opt_offset)
 {
 	int     nmatch = 0, lastr_val = 0, i;
 
@@ -704,10 +704,7 @@ static int find_opt (s, lookup_long, optstart, len, err_code, opt_offset)
 }
 
 
-int     scanopt (svoid, arg, optindex)
-     scanopt_t *svoid;
-     char  **arg;
-     int    *optindex;
+int     scanopt (scanopt_t *svoid, char **arg, int *optindex)
 {
 	char   *optname = NULL, *optarg = NULL, *pstart;
 	int     namelen = 0, arglen = 0;
@@ -855,8 +852,7 @@ int     scanopt (svoid, arg, optindex)
 }
 
 
-int     scanopt_destroy (svoid)
-     scanopt_t *svoid;
+int     scanopt_destroy (scanopt_t *svoid)
 {
 	struct _scanopt_t *s;
 

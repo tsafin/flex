@@ -34,12 +34,13 @@ AC_CONFIG_LIBOBJ_DIR([lib])
 # checks for programs
 
 AM_GNU_GETTEXT([external])
-AM_GNU_GETTEXT_VERSION(0.12)
+AM_GNU_GETTEXT_VERSION([0.17])
+
 AC_PROG_YACC
 AM_PROG_LEX
 AC_PROG_CC
-AC_PROG_CXX
 AM_PROG_CC_C_O
+AC_PROG_CXX
 AC_PROG_LN_S
 AC_PROG_RANLIB
 AC_PROG_AWK
@@ -114,6 +115,7 @@ examples/Makefile
 examples/fastwc/Makefile
 examples/manual/Makefile
 lib/Makefile
+m4/Makefile
 po/Makefile.in
 tools/Makefile
 tests/Makefile
@@ -133,8 +135,6 @@ tests/test-include-by-push/Makefile
 tests/test-include-by-reentrant/Makefile
 tests/test-multiple-scanners-nr/Makefile
 tests/test-multiple-scanners-r/Makefile
-tests/test-noansi-nr/Makefile
-tests/test-noansi-r/Makefile
 tests/test-prefix-nr/Makefile
 tests/test-prefix-r/Makefile
 tests/test-pthread/Makefile
@@ -164,6 +164,9 @@ tests/test-ccl/Makefile
 tests/test-extended/Makefile
 tests/test-c++-yywrap/Makefile
 tests/test-concatenated-options/Makefile
+tests/test-c++-table-opts/Makefile
+tests/test-namespace-nr/Makefile
+tests/test-no-m4/Makefile
 dnl --new-test-here-- This line is processed by tests/create-test.
 )
 

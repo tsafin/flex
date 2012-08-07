@@ -26,6 +26,8 @@ dist_noinst_SCRIPTS = \
 	create-test
 
 DIST_SUBDIRS = \
+	test-no-m4 \
+	test-namespace-nr \
 	test-concatenated-options \
 	test-c++-yywrap \
 	test-extended \
@@ -70,11 +72,12 @@ DIST_SUBDIRS = \
 	test-string-r \
 	test-yyextra \
 	test-alloc-extra \
-	test-noansi-nr \
-	test-noansi-r \
-	test-table-opts
+	test-table-opts \
+	test-c++-table-opts
 
 SUBDIRS = \
+	test-no-m4 \
+	test-namespace-nr \
 	test-concatenated-options \
 	test-c++-yywrap \
 	test-extended \
@@ -117,10 +120,9 @@ SUBDIRS = \
 	test-string-r \
 	test-yyextra \
 	test-alloc-extra \
-	test-noansi-nr \
-	test-noansi-r \
 	test-top \
-	test-table-opts
+	test-table-opts \
+	test-c++-table-opts
 
 # clean up before running the test suite so we dont test old builds of test code
 

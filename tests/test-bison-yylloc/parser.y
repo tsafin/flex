@@ -63,6 +63,17 @@ int process_text(char* s) {
 %token  EQUAL "="
 %token  COLON ":"
 %token  SPACE " "
+%{
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef void *yyscan_t;
+extern int testget_lineno(void*);
+extern int testlex(YYSTYPE *yylval, YYLTYPE *yylloc, yyscan_t yyscanner);
+#ifdef __cplusplus
+}
+#endif
+%}
 %%
 
 file:

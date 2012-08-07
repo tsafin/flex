@@ -23,9 +23,7 @@
 
 extern int yylex ();
 
-int     main (argc, argv)
-     int     argc;
-     char   *argv[];
+int     main (int argc /*@unused@*/, char *argv[] /*@unused@*/)
 {
 	while (yylex () != 0) ;
 

@@ -51,7 +51,7 @@ void flex_regcomp(regex_t *preg, const char *regex, int cflags)
 {
     int err;
 
-	memset (preg, 0, sizeof (regex_t));
+	memset ((void*)preg, 0, sizeof (regex_t));
 
 	if ((err = regcomp (preg, regex, cflags)) != 0) {
         const int errbuf_sz = 200;

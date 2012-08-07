@@ -42,7 +42,7 @@ sf_push (void)
     if (_sf_top_ix + 1 >= _sf_max)
         _sf_stk = (scanflags_t*) flex_realloc ( (void*) _sf_stk, sizeof(scanflags_t) * (_sf_max += 32));
 
-    // copy the top element
+    /* copy the top element */
     _sf_stk[_sf_top_ix + 1] = _sf_stk[_sf_top_ix];
     ++_sf_top_ix;
 }

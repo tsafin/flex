@@ -36,7 +36,11 @@
 #include "parse.h"
 extern bool tablesverify, tablesext;
 extern int trlcontxt; /* Set in  parse.y for each rule. */
+extern int parsing_option_string; /* flag for parsing --option="..." */
 extern const char *escaped_qstart, *escaped_qend;
+
+/* TODO: This macros allows for NLS support of scanner error messages. */
+/* #define YY_FATAL_ERROR(msg) yy_fatal_error(_(msg)) */
 
 #define ACTION_ECHO add_action( yytext )
 #define ACTION_IFDEF(def, should_define) \
@@ -55,6 +59,9 @@ extern const char *escaped_qstart, *escaped_qend;
         else \
             buf_m4_undefine( &m4defs_buf, def);\
     } while(0)
+
+#define ACTION_M4_DEFINE(def, bool) \
+    buf_m4_define( &m4defs_buf, def, (bool) ? "1" : "0")
 
 #define MARK_END_OF_PROLOG mark_prolog();
 
@@ -100,7 +107,8 @@ extern const char *escaped_qstart, *escaped_qend;
 
 %x SECT2 SECT2PROLOG SECT3 CODEBLOCK PICKUPDEF SC CARETISBOL NUM QUOTE
 %x FIRSTCCL CCL ACTION RECOVER COMMENT ACTION_STRING PERCENT_BRACE_ACTION
-%x OPTION LINEDIR CODEBLOCK_MATCH_BRACE
+%x OPTION BOOLEAN_OPTION LINEDIR CODEBLOCK_MATCH_BRACE
+%x CODEBLOCK_HEADER CODEBLOCK_BOTTOM
 %x GROUP_WITH_PARAMS
 %x GROUP_MINUS_PARAMS
 %x EXTENDED_COMMENT
@@ -139,14 +147,14 @@ M4QEND      "]]"
 
 
 <INITIAL>{
-	^{WS}		indented_code = true; BEGIN(CODEBLOCK);
+	^{WS}		{ indented_code = true; BEGIN(CODEBLOCK); }
 	^"/*"		ACTION_ECHO; yy_push_state( COMMENT );
 	^#{OPTWS}line{WS}	yy_push_state( LINEDIR );
 	^"%s"{NAME}?	return SCDECL;
 	^"%x"{NAME}?	return XSCDECL;
 	^"%{".*{NL}	{
 			++linenum;
-			line_directive_out( (FILE *) 0, 1 );
+			line_directive_out( (FILE *) 0, 1 ); /* insert #line into action array */
 			indented_code = false;
 			BEGIN(CODEBLOCK);
 			}
@@ -160,13 +168,26 @@ M4QEND      "]]"
 
     ^"%top".*   synerr( _("malformed '%top' directive") );
 
+    ^"%header"[[:blank:]]*"{"[[:blank:]]*{NL}    {
+                ++linenum;
+                buf_linedir( &top_buf, infilename?infilename:"<stdin>", linenum);
+                yy_push_state(CODEBLOCK_HEADER);
+            }
+
+    ^"%bottom"[[:blank:]]*"{"[[:blank:]]*{NL}    {
+                ++linenum;
+                buf_linedir( &bottom_buf, infilename?infilename:"<stdin>", linenum);
+                yy_push_state(CODEBLOCK_BOTTOM);
+            }
+
+
 	{WS}		/* discard */
 
 	^"%%".*		{
 			sectnum = 2;
 			bracelevel = 0;
 			mark_defs1();
-			line_directive_out( (FILE *) 0, 1 );
+			line_directive_out( (FILE *) 0, 1 ); /* insert #line into action array */
 			BEGIN(SECT2PROLOG);
 			return SECTEND;
 			}
@@ -174,7 +195,7 @@ M4QEND      "]]"
 	^"%pointer".*{NL}	yytext_is_array = false; ++linenum;
 	^"%array".*{NL}		yytext_is_array = true; ++linenum;
 
-	^"%option"	BEGIN(OPTION); return OPTION_OP;
+	^"%option"	BEGIN(OPTION); return parsing_option_string ? OPTION_STRING : OPTION_OP;
 
 	^"%"{LEXOPT}{OPTWS}[[:digit:]]*{OPTWS}{NL}	++linenum; /* ignore */
 	^"%"{LEXOPT}{WS}.*{NL}	++linenum;	/* ignore */
@@ -253,6 +274,36 @@ M4QEND      "]]"
 			}
 }
 
+<CODEBLOCK_HEADER>{
+    ^"%}".*{NL}    {
+                   ++linenum;
+                   yy_pop_state();
+                   }
+
+    {M4QSTART}  buf_strnappend(&top_buf, escaped_qstart, strlen(escaped_qstart));
+    {M4QEND}    buf_strnappend(&top_buf, escaped_qend, strlen(escaped_qend));
+    .           buf_strnappend(&top_buf, yytext, yyleng);
+    {NL}        {
+                ++linenum;
+                buf_strnappend(&top_buf, yytext, yyleng);
+                }
+}
+
+<CODEBLOCK_BOTTOM>{
+    ^"%}".*{NL}    {
+                   ++linenum;
+                   yy_pop_state();
+                   }
+
+    {M4QSTART}  buf_strnappend(&bottom_buf, escaped_qstart, strlen(escaped_qstart));
+    {M4QEND}    buf_strnappend(&bottom_buf, escaped_qend, strlen(escaped_qend));
+    .           buf_strnappend(&bottom_buf, yytext, yyleng);
+    {NL}        {
+                ++linenum;
+                buf_strnappend(&bottom_buf, yytext, yyleng);
+                }
+}
+
 <CODEBLOCK_MATCH_BRACE>{
     "}"     {
                 if( --brace_depth == 0){
@@ -323,115 +374,20 @@ M4QEND      "]]"
 
 <OPTION>{
 	{NL}		++linenum; BEGIN(INITIAL);
-	{WS}		option_sense = true;
+	{WS}		{}
 
 	"="		return '=';
 
-	no		option_sense = ! option_sense;
+	no		yymore(); option_sense = false; BEGIN(BOOLEAN_OPTION);
 
-	7bit		csize = option_sense ? 128 : 256;
-	8bit		csize = option_sense ? 256 : 128;
-
-	align		long_align = option_sense;
-	always-interactive	{
-			ACTION_M4_IFDEF( "M4""_YY_ALWAYS_INTERACTIVE", option_sense );
-            interactive = option_sense;
-			}
-	array		yytext_is_array = option_sense;
-    ansi-definitions ansi_func_defs = option_sense;
-    ansi-prototypes  ansi_func_protos = option_sense;
-	backup		backing_up_report = option_sense;
-	batch		interactive = ! option_sense;
-    bison-bridge     bison_bridge_lval = option_sense;
-    bison-locations  { if((bison_bridge_lloc = option_sense))
-                            bison_bridge_lval = true;
-                     }
-	"c++"		C_plus_plus = option_sense;
-	caseful|case-sensitive		sf_set_case_ins(!option_sense);
-	caseless|case-insensitive	sf_set_case_ins(option_sense);
-	debug		ddebug = option_sense;
-	default		spprdflt = ! option_sense;
-	ecs		useecs = option_sense;
-	fast		{
-			useecs = usemecs = false;
-			use_read = fullspd = true;
-			}
-	full		{
-			useecs = usemecs = false;
-			use_read = fulltbl = true;
-			}
-	input		ACTION_IFDEF("YY_NO_INPUT", ! option_sense);
-	interactive	interactive = option_sense;
-	lex-compat	lex_compat = option_sense;
-	posix-compat	posix_compat = option_sense;
-	main		{
-			ACTION_M4_IFDEF( "M4""_YY_MAIN", option_sense);
-            /* Override yywrap */
-            if( option_sense == true )
-                do_yywrap = false;
-			}
-	meta-ecs	usemecs = option_sense;
-	never-interactive	{
-			ACTION_M4_IFDEF( "M4""_YY_NEVER_INTERACTIVE", option_sense );
-            interactive = !option_sense;
-			}
-	perf-report	performance_report += option_sense ? 1 : -1;
-	pointer		yytext_is_array = ! option_sense;
-	read		use_read = option_sense;
-    reentrant   reentrant = option_sense;
-	reject		reject_really_used = option_sense;
-	stack		ACTION_M4_IFDEF( "M4""_YY_STACK_USED", option_sense );
-	stdinit		do_stdinit = option_sense;
-	stdout		use_stdout = option_sense;
-    unistd      ACTION_IFDEF("YY_NO_UNISTD_H", ! option_sense);
-	unput		ACTION_M4_IFDEF("M4""_YY_NO_UNPUT", ! option_sense);
-	verbose		printstats = option_sense;
-	warn		nowarn = ! option_sense;
-	yylineno	do_yylineno = option_sense; ACTION_M4_IFDEF("M4""_YY_USE_LINENO", option_sense);
-	yymore		yymore_really_used = option_sense;
-	yywrap      do_yywrap = option_sense;
-
-	yy_push_state	ACTION_M4_IFDEF("M4""_YY_NO_PUSH_STATE", ! option_sense);
-	yy_pop_state	ACTION_M4_IFDEF("M4""_YY_NO_POP_STATE", ! option_sense);
-	yy_top_state	ACTION_M4_IFDEF("M4""_YY_NO_TOP_STATE", ! option_sense);
-
-	yy_scan_buffer	ACTION_M4_IFDEF("M4""_YY_NO_SCAN_BUFFER", ! option_sense);
-	yy_scan_bytes	ACTION_M4_IFDEF("M4""_YY_NO_SCAN_BYTES", ! option_sense);
-	yy_scan_string	ACTION_M4_IFDEF("M4""_YY_NO_SCAN_STRING", ! option_sense);
-
-    yyalloc         ACTION_M4_IFDEF("M4""_YY_NO_FLEX_ALLOC", ! option_sense);
-    yyrealloc       ACTION_M4_IFDEF("M4""_YY_NO_FLEX_REALLOC", ! option_sense);
-    yyfree          ACTION_M4_IFDEF("M4""_YY_NO_FLEX_FREE", ! option_sense);
-
-    yyget_debug     ACTION_M4_IFDEF("M4""_YY_NO_GET_DEBUG", ! option_sense);
-    yyset_debug     ACTION_M4_IFDEF("M4""_YY_NO_SET_DEBUG", ! option_sense);
-    yyget_extra     ACTION_M4_IFDEF("M4""_YY_NO_GET_EXTRA", ! option_sense);
-    yyset_extra     ACTION_M4_IFDEF("M4""_YY_NO_SET_EXTRA", ! option_sense);
-    yyget_leng      ACTION_M4_IFDEF("M4""_YY_NO_GET_LENG", ! option_sense);
-    yyget_text      ACTION_M4_IFDEF("M4""_YY_NO_GET_TEXT", ! option_sense);
-    yyget_lineno    ACTION_M4_IFDEF("M4""_YY_NO_GET_LINENO", ! option_sense);
-    yyset_lineno    ACTION_M4_IFDEF("M4""_YY_NO_SET_LINENO", ! option_sense);
-    yyget_in        ACTION_M4_IFDEF("M4""_YY_NO_GET_IN", ! option_sense);
-    yyset_in        ACTION_M4_IFDEF("M4""_YY_NO_SET_IN", ! option_sense);
-    yyget_out       ACTION_M4_IFDEF("M4""_YY_NO_GET_OUT", ! option_sense);
-    yyset_out       ACTION_M4_IFDEF("M4""_YY_NO_SET_OUT", ! option_sense);
-    yyget_lval      ACTION_M4_IFDEF("M4""_YY_NO_GET_LVAL", ! option_sense);
-    yyset_lval      ACTION_M4_IFDEF("M4""_YY_NO_SET_LVAL", ! option_sense);
-    yyget_lloc      ACTION_M4_IFDEF("M4""_YY_NO_GET_LLOC", ! option_sense);
-    yyset_lloc      ACTION_M4_IFDEF("M4""_YY_NO_SET_LLOC", ! option_sense);
-
+	namespace	return OPT_NAMESPACE;
 	extra-type	return OPT_EXTRA_TYPE;
 	outfile		return OPT_OUTFILE;
 	prefix		return OPT_PREFIX;
 	yyclass		return OPT_YYCLASS;
 	header(-file)?      return OPT_HEADER;
 	tables-file         return OPT_TABLES;
-	tables-verify   {
-                    tablesverify = option_sense;
-                    if(!tablesext && option_sense)
-                        tablesext = true;
-                    }
-
+	skel(-file)?      return OPT_SKEL;
 
 	\"[^"\n]*\"	{
 			if(yyleng-1 < MAXLINE)
@@ -447,11 +403,135 @@ M4QEND      "]]"
 			return NAME;
 			}
 
-	(([a-mo-z]|n[a-np-z])[[:alpha:]\-+]*)|.	{
-			format_synerr( _( "unrecognized %%option: %s" ),
-				yytext );
-			BEGIN(RECOVER);
+	.    		{ /* At this point, it is a boolean option or an error, detected below. */
+			  yyless(0);
+			  option_sense=true;
+			  BEGIN(BOOLEAN_OPTION);
 			}
+
+}
+
+<BOOLEAN_OPTION>{
+	7bit		csize = option_sense ? 128 : 256; BEGIN(OPTION);
+	8bit		csize = option_sense ? 256 : 128; BEGIN(OPTION);
+
+	align		long_align = option_sense; BEGIN(OPTION);
+	always-interactive	{
+			ACTION_M4_IFDEF( "M4""_YY_ALWAYS_INTERACTIVE", option_sense );
+            		interactive = option_sense; BEGIN(OPTION);
+			}
+	array		yytext_is_array = option_sense; BEGIN(OPTION);
+    ansi-definitions	synerr(_("%option noansi-definitions is obsolete")); BEGIN(OPTION);
+    ansi-prototypes	synerr(_("%option noansi-prototypes is obsolete")); BEGIN(OPTION);
+	backup		backing_up_report = option_sense; BEGIN(OPTION);
+	batch		interactive = ! option_sense; BEGIN(OPTION);
+    bison-bridge     bison_bridge_lval = option_sense; BEGIN(OPTION);
+    bison-locations  { if((bison_bridge_lloc = option_sense))
+                            bison_bridge_lval = true;
+			BEGIN(OPTION);
+                     }
+	"c++"		C_plus_plus = option_sense; BEGIN(OPTION);
+	caseful|case-sensitive		sf_set_case_ins(!option_sense); BEGIN(OPTION);
+	caseless|case-insensitive	sf_set_case_ins(option_sense); BEGIN(OPTION);
+	debug		ddebug = option_sense; BEGIN(OPTION);
+	default		spprdflt = ! option_sense; BEGIN(OPTION);
+	ecs		useecs = option_sense; BEGIN(OPTION);
+	fast		fullspd = option_sense; BEGIN(OPTION);
+	full		fulltbl = option_sense; BEGIN(OPTION);
+	input		ACTION_IFDEF("YY_NO_INPUT", !option_sense); BEGIN(OPTION);
+	interactive	interactive = option_sense; BEGIN(OPTION);
+	lex-compat	lex_compat = option_sense; BEGIN(OPTION);
+	line    	gen_line_dirs = option_sense; BEGIN(OPTION);
+	posix-compat	posix_compat = option_sense; BEGIN(OPTION);
+	main		ACTION_M4_IFDEF( "M4""_YY_MAIN", option_sense); BEGIN(OPTION);
+	meta-ecs	usemecs = option_sense; BEGIN(OPTION);
+	never-interactive	{
+			ACTION_M4_IFDEF( "M4""_YY_NEVER_INTERACTIVE", option_sense );
+			interactive = !option_sense; BEGIN(OPTION);
+			}
+	perf-report	performance_report += option_sense ? 1 : -1; BEGIN(OPTION);
+	pointer		yytext_is_array = ! option_sense; BEGIN(OPTION);
+	read		use_read = option_sense; BEGIN(OPTION);
+    reentrant   reentrant = option_sense; BEGIN(OPTION);
+	reject		reject_really_used = option_sense; BEGIN(OPTION);
+	stack		ACTION_M4_IFDEF( "M4""_YY_STACK_USED", option_sense ); BEGIN(OPTION);
+	stdinit		do_stdinit = option_sense; BEGIN(OPTION);
+	stdout		use_stdout = option_sense; BEGIN(OPTION);
+    unistd      ACTION_IFDEF("YY_NO_UNISTD_H", ! option_sense); BEGIN(OPTION);
+	unput		ACTION_M4_IFDEF("M4""_YY_NO_UNPUT", ! option_sense); BEGIN(OPTION);
+	output		ACTION_M4_IFDEF("M4_YY_OUTPUT", option_sense); BEGIN(OPTION);
+	verbose		printstats = option_sense; BEGIN(OPTION);
+	warn		nowarn = ! option_sense; BEGIN(OPTION);
+	yylineno	{
+			ACTION_M4_IFDEF("M4""_YY_USE_LINENO", option_sense); BEGIN(OPTION);
+			do_yylineno = option_sense;
+			}
+	yymore		yymore_really_used = option_sense; BEGIN(OPTION);
+	yywrap      do_yywrap = option_sense; BEGIN(OPTION);
+
+	yy_push_state	ACTION_M4_IFDEF("M4""_YY_NO_PUSH_STATE", ! option_sense); BEGIN(OPTION);
+	yy_pop_state	ACTION_M4_IFDEF("M4""_YY_NO_POP_STATE", ! option_sense); BEGIN(OPTION);
+	yy_top_state	ACTION_M4_IFDEF("M4""_YY_NO_TOP_STATE", ! option_sense); BEGIN(OPTION);
+
+	yy_scan_buffer	ACTION_M4_IFDEF("M4""_YY_NO_SCAN_BUFFER", ! option_sense); BEGIN(OPTION);
+	yy_scan_bytes	ACTION_M4_IFDEF("M4""_YY_NO_SCAN_BYTES", ! option_sense); BEGIN(OPTION);
+	yy_scan_string	ACTION_M4_IFDEF("M4""_YY_NO_SCAN_STRING", ! option_sense); BEGIN(OPTION);
+
+    yyalloc         ACTION_M4_IFDEF("M4""_YY_NO_FLEX_ALLOC", ! option_sense); BEGIN(OPTION);
+    yyrealloc       ACTION_M4_IFDEF("M4""_YY_NO_FLEX_REALLOC", ! option_sense); BEGIN(OPTION);
+    yyfree          ACTION_M4_IFDEF("M4""_YY_NO_FLEX_FREE", ! option_sense); BEGIN(OPTION);
+
+    yyget_debug     ACTION_M4_IFDEF("M4""_YY_NO_GET_DEBUG", ! option_sense); BEGIN(OPTION);
+    yyset_debug     ACTION_M4_IFDEF("M4""_YY_NO_SET_DEBUG", ! option_sense); BEGIN(OPTION);
+    yyget_extra     ACTION_M4_IFDEF("M4""_YY_NO_GET_EXTRA", ! option_sense); BEGIN(OPTION);
+    yyset_extra     ACTION_M4_IFDEF("M4""_YY_NO_SET_EXTRA", ! option_sense); BEGIN(OPTION);
+    yyget_leng      ACTION_M4_IFDEF("M4""_YY_NO_GET_LENG", ! option_sense); BEGIN(OPTION);
+    yyget_text      ACTION_M4_IFDEF("M4""_YY_NO_GET_TEXT", ! option_sense); BEGIN(OPTION);
+    yyget_lineno    ACTION_M4_IFDEF("M4""_YY_NO_GET_LINENO", ! option_sense); BEGIN(OPTION);
+    yyset_lineno    ACTION_M4_IFDEF("M4""_YY_NO_SET_LINENO", ! option_sense); BEGIN(OPTION);
+    yyget_in        ACTION_M4_IFDEF("M4""_YY_NO_GET_IN", ! option_sense); BEGIN(OPTION);
+    yyset_in        ACTION_M4_IFDEF("M4""_YY_NO_SET_IN", ! option_sense); BEGIN(OPTION);
+    yyget_out       ACTION_M4_IFDEF("M4""_YY_NO_GET_OUT", ! option_sense); BEGIN(OPTION);
+    yyset_out       ACTION_M4_IFDEF("M4""_YY_NO_SET_OUT", ! option_sense); BEGIN(OPTION);
+    yyget_lval      ACTION_M4_IFDEF("M4""_YY_NO_GET_LVAL", ! option_sense); BEGIN(OPTION);
+    yyset_lval      ACTION_M4_IFDEF("M4""_YY_NO_SET_LVAL", ! option_sense); BEGIN(OPTION);
+    yyget_lloc      ACTION_M4_IFDEF("M4""_YY_NO_GET_LLOC", ! option_sense); BEGIN(OPTION);
+    yyset_lloc      ACTION_M4_IFDEF("M4""_YY_NO_SET_LLOC", ! option_sense); BEGIN(OPTION);
+
+        /* JMK additions */
+	yyget_column	ACTION_M4_IFDEF("M4_YY_NO_GET_COLUMN", ! option_sense); BEGIN(OPTION);
+	yyset_column	ACTION_M4_IFDEF("M4_YY_NO_SET_COLUMN", ! option_sense); BEGIN(OPTION);
+	yy_flush_buffer	ACTION_M4_IFDEF("M4_YY_NO_FLUSH_BUFFER", ! option_sense); BEGIN(OPTION);
+	yy_create_buffer	ACTION_M4_IFDEF("M4_YY_NO_CREATE_BUFFER", ! option_sense); BEGIN(OPTION);
+	yy_delete_buffer	ACTION_M4_IFDEF("M4_YY_NO_DELETE_BUFFER", ! option_sense); BEGIN(OPTION);
+	yypop_buffer_state	ACTION_M4_IFDEF("M4_YY_NO_POP_BUFFER_STATE", ! option_sense); BEGIN(OPTION);
+	yypush_buffer_state	ACTION_M4_IFDEF("M4_YY_NO_PUSH_BUFFER_STATE", ! option_sense); BEGIN(OPTION);
+	yy_switch_to_buffer	ACTION_M4_IFDEF("M4_YY_NO_SWITCH_TOP_BUFFER", ! option_sense); BEGIN(OPTION);
+	include-header	ACTION_M4_IFDEF("M4_YY_INCLUDE_HEADER", option_sense); BEGIN(OPTION);
+	cxx-iostream	ACTION_M4_DEFINE("M4_YY_CXX_IOSTREAM", option_sense); BEGIN(OPTION);
+	extern-c	ACTION_M4_IFDEF("M4_YY_NO_EXTERN_C", !option_sense); BEGIN(OPTION);
+
+	tables-verify   {
+                    tablesverify = option_sense;
+                    if(!tablesext && option_sense)
+                        tablesext = true;
+			BEGIN(OPTION);
+                    }
+
+	([[:alnum:]\-+]*)|.	{
+		if (parsing_option_string) {
+		    /* The extra fprintf()s allow the same gettext string for the both error messages. */
+		    fprintf(stderr,"--options: ");
+		    fprintf(stderr,_("unrecognized %%option: %s"), yytext);
+		    fprintf(stderr,"\n");
+		    syntaxerror = true;
+		    BEGIN(OPTION);
+		}
+		else {
+		    format_synerr( _( "unrecognized %%option: %s" ), yytext);
+			BEGIN(RECOVER);
+		}
+				}
 }
 
 <RECOVER>.*{NL}		++linenum; BEGIN(INITIAL);
@@ -629,7 +709,11 @@ M4QEND      "]]"
                    */
                 &&  (cclval = ccllookup( (Char *) nmstr )) != 0 )
 				{
+#ifdef __cplusplus
+				if ( yyinput() != ']' )
+#else
 				if ( input() != ']' )
+#endif
 					synerr( _( "bad character class" ) );
 
 				yylval = cclval;
@@ -721,7 +805,7 @@ nmstr[yyleng - 2 - end_is_ws] = '\0';  /* chop trailing brace */
     "(?#"       {
                     if (lex_compat || posix_compat){
                         /* Push back the "?#" and treat it like a normal parens. */
-                        yyless(1);
+                        yyless(2); /* JMK: BUGFIX: This was yyless(1). */
                         sf_push(); 
                         return '(';
                     }
@@ -984,8 +1068,7 @@ int yywrap()
 
 /* set_input_file - open the given file (if NULL, stdin) for scanning */
 
-void set_input_file( file )
-char *file;
+void set_input_file(char *file )
 	{
 	if ( file && strcmp( file, "-" ) )
 		{
@@ -1008,21 +1091,17 @@ char *file;
 
 /* Wrapper routines for accessing the scanner's malloc routines. */
 
-void *flex_alloc( size )
-size_t size;
+void *flex_alloc(size_t size )
 	{
 	return (void *) malloc( size );
 	}
 
-void *flex_realloc( ptr, size )
-void *ptr;
-size_t size;
+void *flex_realloc(void *ptr, size_t size )
 	{
 	return (void *) realloc( ptr, size );
 	}
 
-void flex_free( ptr )
-void *ptr;
+void flex_free(void *ptr )
 	{
 	if ( ptr )
 		free( ptr );

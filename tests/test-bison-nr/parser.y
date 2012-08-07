@@ -36,8 +36,6 @@
 /* #define YYLEX_PARAM   scanner */
 
 int yyerror(char* msg);
-extern int testget_lineno(void);
-
 
 /* A dummy function. A check against seg-faults in yylval->str. */
 int process_text(char* s) {
@@ -63,6 +61,18 @@ int process_text(char* s) {
 %token  EQUAL "="
 %token  COLON ":"
 %token  SPACE " "
+
+%{
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern int testget_lineno(void);
+extern int testlex(union YYSTYPE *yylval, struct YYLTYPE *yylloc);
+#ifdef __cplusplus
+}
+#endif
+%}
+
 %%
 
 file:

@@ -1,8 +1,9 @@
 /* parse.y - parser for flex input */
+%debug
 
 %token CHAR NUMBER SECTEND SCDECL XSCDECL NAME PREVCCL EOF_OP
 %token OPTION_OP OPT_OUTFILE OPT_PREFIX OPT_YYCLASS OPT_HEADER OPT_EXTRA_TYPE
-%token OPT_TABLES
+%token OPT_TABLES OPT_NAMESPACE OPTION_STRING OPT_SKEL
 
 %token CCE_ALNUM CCE_ALPHA CCE_BLANK CCE_CNTRL CCE_DIGIT CCE_GRAPH
 %token CCE_LOWER CCE_PRINT CCE_PUNCT CCE_SPACE CCE_UPPER CCE_XDIGIT
@@ -115,7 +116,9 @@ int previous_continued_action;	/* whether the previous rule's action was '|' */
 %}
 
 %%
-goal		:  initlex sect1 sect1end sect2 initforrule
+		/* OPTION_STRING is a special token for parsing --option=LIST */
+goal		:  OPTION_STRING optionlist
+		|  initlex sect1 sect1end sect2 initforrule
 			{ /* add default rule */
 			int def_rule;
 
@@ -181,7 +184,7 @@ namelist1	:  namelist1 NAME
 			{ scinstal( nmstr, xcluflg ); }
 
 		|  error
-			{ synerr( _("bad start condition list") ); }
+			{ synerr( _("bad start condition list2") ); }
 		;
 
 options		:  OPTION_OP optionlist
@@ -192,20 +195,21 @@ optionlist	:  optionlist option
 		;
 
 option		:  OPT_OUTFILE '=' NAME
-			{
-			outfilename = copy_string( nmstr );
-			did_outfilename = 1;
-			}
+			{ outfilename = copy_string( nmstr ); }
 		|  OPT_EXTRA_TYPE '=' NAME
 			{ extra_type = copy_string( nmstr ); }
 		|  OPT_PREFIX '=' NAME
 			{ prefix = copy_string( nmstr ); }
+		|  OPT_NAMESPACE '=' NAME
+			{ buf_m4_define( &m4defs_buf, "M4_YY_NAMESPACE", nmstr); }
 		|  OPT_YYCLASS '=' NAME
 			{ yyclass = copy_string( nmstr ); }
 		|  OPT_HEADER '=' NAME
 			{ headerfilename = copy_string( nmstr ); }
-	    |  OPT_TABLES '=' NAME
-            { tablesext = true; tablesfilename = copy_string( nmstr ); }
+		|  OPT_SKEL '=' NAME
+			{ skelname = copy_string( nmstr ); }
+		|  OPT_TABLES '=' NAME
+			{ tablesext = true; tablesfilename = copy_string( nmstr ); }
 		;
 
 sect2		:  sect2 scon initforrule flexrule '\n'
@@ -990,8 +994,7 @@ void build_eof_action()
 
 /* format_synerr - write out formatted syntax error */
 
-void format_synerr( msg, arg )
-const char *msg, arg[];
+void format_synerr(const char *msg, const char arg[])
 	{
 	char errmsg[MAXLINE];
 
@@ -1002,8 +1005,7 @@ const char *msg, arg[];
 
 /* synerr - report a syntax error */
 
-void synerr( str )
-const char *str;
+void synerr(const char *str )
 	{
 	syntaxerror = true;
 	pinpoint_message( str );
@@ -1012,8 +1014,7 @@ const char *str;
 
 /* format_warn - write out formatted warning */
 
-void format_warn( msg, arg )
-const char *msg, arg[];
+void format_warn(const char *msg, const char arg[])
 	{
 	char warn_msg[MAXLINE];
 
@@ -1024,8 +1025,7 @@ const char *msg, arg[];
 
 /* warn - report a warning, unless -w was given */
 
-void warn( str )
-const char *str;
+void warn(const char *str )
 	{
 	line_warning( str, linenum );
 	}
@@ -1034,8 +1034,7 @@ const char *str;
  *			     pinpointing its location
  */
 
-void format_pinpoint_message( msg, arg )
-const char *msg, arg[];
+void format_pinpoint_message(const char *msg, const char arg[])
 	{
 	char errmsg[MAXLINE];
 
@@ -1046,8 +1045,7 @@ const char *msg, arg[];
 
 /* pinpoint_message - write out a message, pinpointing its location */
 
-void pinpoint_message( str )
-const char *str;
+void pinpoint_message(const char *str)
 	{
 	line_pinpoint( str, linenum );
 	}
@@ -1055,9 +1053,7 @@ const char *str;
 
 /* line_warning - report a warning at a given line, unless -w was given */
 
-void line_warning( str, line )
-const char *str;
-int line;
+void line_warning(const char *str, int line )
 	{
 	char warning[MAXLINE];
 
@@ -1071,9 +1067,7 @@ int line;
 
 /* line_pinpoint - write out a message, pinpointing it at the given line */
 
-void line_pinpoint( str, line )
-const char *str;
-int line;
+void line_pinpoint(const char *str, int line )
 	{
 	fprintf( stderr, "%s:%d: %s\n", infilename, line, str );
 	}
@@ -1083,7 +1077,6 @@ int line;
  *	     currently, messages are ignore
  */
 
-void yyerror( msg )
-const char *msg;
+void yyerror(const char *msg )
 	{
 	}

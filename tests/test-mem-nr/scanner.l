@@ -43,6 +43,7 @@
 %option nounput nomain noyywrap
 %option warn stack nodefault
 %option noyyalloc noyyrealloc noyyfree
+%option noyy_top_state
 
 %x parens
 

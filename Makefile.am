@@ -54,7 +54,6 @@ flex_SOURCES = \
 	nfa.c \
 	parse.y \
 	scan.l \
-	skel.c \
 	sym.c \
 	tblcmp.c \
 	yylex.c \
@@ -107,13 +106,21 @@ EXTRA_DIST = \
 	ABOUT-NLS \
 	INSTALL \
 	autogen.sh \
-	flex.skl \
-	mkskel.sh \
 	config.rpath \
-	gettext.h
+	gettext.h \
+	flex_skel.m4 \
+	flex_code_macros.m4 \
+	flex_functions.m4 \
+	flex_globals.m4 \
+	flex_header.m4 \
+	flex_print_m4_params.m4 \
+	flex_private_header.m4 \
+	flex_private_protos.m4 \
+	flex_private_typedefs.m4 \
+	flex_public_header.m4 \
+	flex_public_protos.m4 \
+	flex_public_typedefs.m4
 
-BUILT_SOURCES = \
-	skel.c
 
 SUBDIRS = \
 	lib \
@@ -125,11 +132,8 @@ SUBDIRS = \
 	tests
 
 localedir = $(datadir)/locale
-AM_CPPFLAGS = -DLOCALEDIR=\"$(localedir)\" -I$(top_srcdir)/intl
+AM_CPPFLAGS = -DDATAROOTDIR=\"$(datarootdir)\" -DLOCALEDIR=\"$(localedir)\" -I$(top_srcdir)/intl
 LIBS = @LIBINTL@ @LIBS@
-
-skel.c: flex.skl mkskel.sh flexint.h tables_shared.h
-	sed 's/m4_/m4postproc_/g; s/m4preproc_/m4_/g' $(srcdir)/flex.skl | $(m4) -P -DFLEX_MAJOR_VERSION=`echo $(VERSION)|cut -f 1 -d .` -DFLEX_MINOR_VERSION=`echo $(VERSION)|cut -f 2 -d .` -DFLEX_SUBMINOR_VERSION=`echo $(VERSION)|cut -f 3 -d .` | sed 's/m4postproc_/m4_/g' | $(SHELL) $(srcdir)/mkskel.sh  >skel.c
 
 # Explicitly describe dependencies.
 # You can recreate this with `gcc -I. -MM *.c'
@@ -149,7 +153,6 @@ options.o: options.c options.h scanopt.h flexdef.h flexint.h
 parse.o: parse.c flexdef.h flexint.h tables.h tables_shared.h
 scan.o: scan.c flexdef.h flexint.h parse.h
 scanopt.o: scanopt.c flexdef.h flexint.h scanopt.h
-skel.o: skel.c flexdef.h flexint.h
 sym.o: sym.c flexdef.h flexint.h
 tables.o: tables.c flexdef.h flexint.h tables.h tables_shared.h
 tables_shared.o: tables_shared.c flexdef.h flexint.h tables.h \

@@ -35,6 +35,7 @@
 
 #include "flexdef.h"
 #include "tables.h"
+#include <arpa/inet.h> /* For htonl(), htons() */
 
 /** Convert size_t to t_flag.
  *  @param n in {1,2,4}
@@ -57,10 +58,10 @@ int     yytbl_write16 (struct yytbl_writer *wr, flex_uint16_t v);
 int     yytbl_write8 (struct yytbl_writer *wr, flex_uint8_t v);
 int     yytbl_writen (struct yytbl_writer *wr, void *v, flex_int32_t len);
 static flex_int32_t yytbl_data_geti (const struct yytbl_data *tbl, int i);
-/* XXX Not used
+#if 0
 static flex_int32_t yytbl_data_getijk (const struct yytbl_data *tbl, int i,
 				  int j, int k);
- */
+#endif
 
 
 /** Initialize the table writer.
@@ -88,7 +89,7 @@ int yytbl_hdr_init (struct yytbl_hdr *th, const char *version_str,
 	th->th_magic = YYTBL_MAGIC;
 	th->th_hsize = 14 + strlen (version_str) + 1 + strlen (name) + 1;
 	th->th_hsize += yypad64 (th->th_hsize);
-	th->th_ssize = 0;	// Not known at this point.
+	th->th_ssize = 0;	/* Not known at this point. */
 	th->th_flags = 0;
 	th->th_version = copy_string (version_str);
 	th->th_name = copy_string (name);
@@ -331,9 +332,7 @@ int yytbl_write8 (struct yytbl_writer *wr, flex_uint8_t v)
 	return bytes;
 }
 
-
-/* XXX Not Used */
-#if 0
+#if 0 /* THIS CODE IS UNUSED */
 /** Extract data element [i][j] from array data tables. 
  * @param tbl data table
  * @param i index into higher dimension array. i should be zero for one-dimensional arrays.
@@ -368,7 +367,7 @@ static flex_int32_t yytbl_data_getijk (const struct yytbl_data *tbl, int i,
 
 	return 0;
 }
-#endif /* Not used */
+#endif
 
 /** Extract data element [i] from array data tables treated as a single flat array of integers.
  * Be careful for 2-dimensional arrays or for YYTD_ID_TRANSITION, which is an array
@@ -464,7 +463,7 @@ void yytbl_data_compress (struct yytbl_data *tbl)
 	flex_int32_t i, newsz, total_len;
 	struct yytbl_data newtbl;
 
-	yytbl_data_init (&newtbl, tbl->td_id);
+	yytbl_data_init (&newtbl, (enum yytbl_id)tbl->td_id);
 	newtbl.td_hilen = tbl->td_hilen;
 	newtbl.td_lolen = tbl->td_lolen;
 	newtbl.td_flags = tbl->td_flags;

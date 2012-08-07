@@ -68,6 +68,5 @@ main ()
     yyin = stdin;
     yyout = stdout;
     yylex();
-    //printf("TEST RETURNING OK.\n");
     return 0;
 }

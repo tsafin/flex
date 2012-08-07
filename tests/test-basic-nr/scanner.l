@@ -35,7 +35,7 @@
 #include "config.h"
 %}
 
-%option prefix="test" outfile="scanner.c" 
+%option prefix="test" outfile="scanner.c" header-file="scan.h"
 %option nounput noyywrap noyylineno warn nodefault
 
 IDENT [[:alnum:]_-]

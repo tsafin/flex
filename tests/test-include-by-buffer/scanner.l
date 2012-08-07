@@ -30,14 +30,14 @@
 #include <stdlib.h>
 #include "config.h"
 %}
-
+%option header="scanner.h"
 %option 8bit outfile="scanner.c" prefix="test"
 %option nounput nomain noyywrap
 %option warn
 
 %x GET_FILENAME
 %{
-
+#include "scanner.h"
 #define MAX_INCLUDE_DEPTH 10
 YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
 int include_stack_ptr = 0;

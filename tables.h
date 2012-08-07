@@ -43,6 +43,8 @@ extern  "C" {
 
 /* Tables serialization API declarations. */
 #include "tables_shared.h"
+extern flex_int32_t yytbl_calc_total_len (const struct yytbl_data *tbl);
+
 struct yytbl_writer {
 	FILE   *out;
 	flex_uint32_t total_written;

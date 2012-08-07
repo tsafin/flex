@@ -42,7 +42,8 @@
 #endif
 
 /* A naive test for segfaults when accessing yytext. */
-static int process_text(char* s, yyscan_t  scanner);
+/* static int process_text(char* s, yyscan_t  scanner); FIXME ? */
+static int process_text(char* s, void * scanner);
 
 %}
 

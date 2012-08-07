@@ -36,11 +36,11 @@
 
 /* declarations for functions that have forward references */
 
-void mkentry PROTO ((register int *, int, int, int, int));
-void mkprot PROTO ((int[], int, int));
-void mktemplate PROTO ((int[], int, int));
-void mv2front PROTO ((int));
-int tbldiff PROTO ((int[], int, int[]));
+void mkentry (register int *, int, int, int, int);
+void mkprot (int[], int, int);
+void mktemplate (int[], int, int);
+void mv2front (int);
+int tbldiff (int[], int, int[]);
 
 
 /* bldtbl - build table entries for dfa state
@@ -78,8 +78,7 @@ int tbldiff PROTO ((int[], int, int[]));
  * cost only one difference.
  */
 
-void    bldtbl (state, statenum, totaltrans, comstate, comfreq)
-     int     state[], statenum, totaltrans, comstate, comfreq;
+void    bldtbl (int state[], int statenum, int totaltrans, int comstate, int comfreq)
 {
 	int     extptr, extrct[2][CSIZE + 1];
 	int     mindiff, minprot, i, d;
@@ -221,7 +220,7 @@ void    bldtbl (state, statenum, totaltrans, comstate, comfreq)
  * classes.
  */
 
-void    cmptmps ()
+void    cmptmps (void)
 {
 	int     tmpstorage[CSIZE + 1];
 	register int *tmp = tmpstorage, i, j;
@@ -289,7 +288,7 @@ void    cmptmps ()
 
 /* expand_nxt_chk - expand the next check arrays */
 
-void    expand_nxt_chk ()
+void    expand_nxt_chk (void)
 {
 	register int old_max = current_max_xpairs;
 
@@ -324,8 +323,7 @@ void    expand_nxt_chk ()
  * and an action number will be added in [-1].
  */
 
-int     find_table_space (state, numtrans)
-     int    *state, numtrans;
+int     find_table_space (int *state, int numtrans)
 {
 	/* Firstfree is the position of the first possible occurrence of two
 	 * consecutive unused records in the chk and nxt arrays.
@@ -419,7 +417,7 @@ int     find_table_space (state, numtrans)
  * Initializes "firstfree" to be one beyond the end of the table.  Initializes
  * all "chk" entries to be zero.
  */
-void    inittbl ()
+void    inittbl (void)
 {
 	register int i;
 
@@ -451,7 +449,7 @@ void    inittbl ()
 
 /* mkdeftbl - make the default, "jam" table entries */
 
-void    mkdeftbl ()
+void    mkdeftbl (void)
 {
 	int     i;
 
@@ -500,9 +498,8 @@ void    mkdeftbl ()
  * state array.
  */
 
-void    mkentry (state, numchars, statenum, deflink, totaltrans)
-     register int *state;
-     int     numchars, statenum, deflink, totaltrans;
+void    mkentry (register int *state, int numchars,
+	int statenum, int deflink, int totaltrans)
 {
 	register int minec, maxec, i, baseaddr;
 	int     tblbase, tbllast;
@@ -616,8 +613,7 @@ void    mkentry (state, numchars, statenum, deflink, totaltrans)
  *            has only one out-transition
  */
 
-void    mk1tbl (state, sym, onenxt, onedef)
-     int     state, sym, onenxt, onedef;
+void    mk1tbl (int state, int sym, int onenxt, int onedef)
 {
 	if (firstfree < sym)
 		firstfree = sym;
@@ -642,8 +638,7 @@ void    mk1tbl (state, sym, onenxt, onedef)
 
 /* mkprot - create new proto entry */
 
-void    mkprot (state, statenum, comstate)
-     int     state[], statenum, comstate;
+void    mkprot (int state[], int statenum, int comstate)
 {
 	int     i, slot, tblbase;
 
@@ -680,8 +675,7 @@ void    mkprot (state, statenum, comstate)
  *              to it
  */
 
-void    mktemplate (state, statenum, comstate)
-     int     state[], statenum, comstate;
+void    mktemplate (int state[], int statenum, int comstate)
 {
 	int     i, numdiff, tmpbase, tmp[CSIZE + 1];
 	Char    transset[CSIZE + 1];
@@ -732,8 +726,7 @@ void    mktemplate (state, statenum, comstate)
 
 /* mv2front - move proto queue element to front of queue */
 
-void    mv2front (qelm)
-     int     qelm;
+void    mv2front (int qelm)
 {
 	if (firstprot != qelm) {
 		if (qelm == lastprot)
@@ -759,8 +752,7 @@ void    mv2front (qelm)
  * Transnum is the number of out-transitions for the state.
  */
 
-void    place_state (state, statenum, transnum)
-     int    *state, statenum, transnum;
+void    place_state (int *state, int statenum, int transnum)
 {
 	register int i;
 	register int *state_ptr;
@@ -802,8 +794,7 @@ void    place_state (state, statenum, transnum)
  * no room, we process the sucker right now.
  */
 
-void    stack1 (statenum, sym, nextstate, deflink)
-     int     statenum, sym, nextstate, deflink;
+void    stack1 (int statenum, int sym, int nextstate, int deflink)
 {
 	if (onesp >= ONE_STACK_SIZE - 1)
 		mk1tbl (statenum, sym, nextstate, deflink);
@@ -832,8 +823,7 @@ void    stack1 (statenum, sym, nextstate, deflink)
  * number is "numecs" minus the number of "SAME_TRANS" entries in "ext".
  */
 
-int     tbldiff (state, pr, ext)
-     int     state[], pr, ext[];
+int     tbldiff (int state[], int pr, int ext[])
 {
 	register int i, *sp = state, *ep = ext, *protp;
 	register int numdiff = 0;

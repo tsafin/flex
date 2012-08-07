@@ -40,6 +40,9 @@ struct Check {
     char qux;
 };
 
+#define YY_TYPEDEF_YY_SCANNER_T
+typedef void* yyscan_t;
+
 /* Save char into junk array at next position. */
 static void check_extra ( yyscan_t  scanner );
 
