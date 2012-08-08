@@ -708,7 +708,7 @@ void genftbl ()
 void gen_next_compressed_state (char_map)
      char   *char_map;
 {
-	indent_put2s ("register YY_CHAR yy_c = %s;", char_map);
+	indent_put2s ("register YY_CHAR yy_c = (YY_CHAR) %s;", char_map);
 
 	/* Save the backing-up info \before/ computing the next state
 	 * because we always compute one more state than needed - we
@@ -736,7 +736,7 @@ void gen_next_compressed_state (char_map)
 		out_dec ("if ( yy_current_state >= %d )\n", lastdfa + 2);
 
 		indent_up ();
-		indent_puts ("yy_c = yy_meta[(unsigned int) yy_c];");
+		indent_puts ("yy_c = (YY_CHAR) yy_meta[(unsigned int) yy_c];");
 		indent_down ();
 	}
 
@@ -744,7 +744,7 @@ void gen_next_compressed_state (char_map)
 	indent_down ();
 
 	indent_puts
-		("yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];");
+		("yy_current_state = yy_nxt[yy_base[yy_current_state] + (flex_int16_t) yy_c];");
 }
 
 
@@ -1516,11 +1516,11 @@ void make_tables ()
 	if (yymore_used && !yytext_is_array) {
 		indent_puts ("YY_G(yytext_ptr) -= YY_G(yy_more_len); \\");
 		indent_puts
-			("yyleng = (size_t) (yy_cp - YY_G(yytext_ptr)); \\");
+			("yyleng = (int) (yy_cp - YY_G(yytext_ptr)); \\");
 	}
 
 	else
-		indent_puts ("yyleng = (size_t) (yy_cp - yy_bp); \\");
+		indent_puts ("yyleng = (int) (yy_cp - yy_bp); \\");
 
 	/* Now also deal with copying yytext_ptr to yytext if needed. */
 	skelout ();		/* %% [3.0] - break point in skel */
@@ -1903,7 +1903,7 @@ void make_tables ()
 			outn ("\telse \\");
 			outn ("\t\t{ \\");
 			outn ("\t\terrno=0; \\");
-			outn ("\t\twhile ( (result = fread(buf, 1, max_size, yyin))==0 && ferror(yyin)) \\");
+			outn ("\t\twhile ( (result = (int) fread(buf, 1, max_size, yyin))==0 && ferror(yyin)) \\");
 			outn ("\t\t\t{ \\");
 			outn ("\t\t\tif( errno != EINTR) \\");
 			outn ("\t\t\t\t{ \\");
